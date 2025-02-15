@@ -6,7 +6,7 @@ const nextConfig = {
   },
   images: { unoptimized: true },
   experimental: {
-    serverActions: true
+    serverActions: {} // ✅ 修正: Boolean から Object に変更
   }
 };
 

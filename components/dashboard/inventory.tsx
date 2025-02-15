@@ -13,6 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProductStore } from "@/lib/store";
+type Location = {
+  column: string;
+  position: string;
+  level: string;
+};
+
 
 // 保管場所の構造データ
 const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
@@ -80,6 +86,16 @@ export function Inventory() {
               loc.position === position && 
               loc.level === level
       );
+    
+      if (!location) return; // ✅ location が undefined の場合、処理をスキップ
+    
+      inventory.push({
+        ...product,
+        location: location,
+        cases: product.totalCases ?? 0 // ✅ 必要に応じて適切な値をセット
+      } as InventoryItem);
+      
+    
       if (location) {
         inventory.push({
           code: product.code,
@@ -240,7 +256,7 @@ export function Inventory() {
 
   const handleSearchBasedAction = (type: 'inbound' | 'outbound' | 'move') => {
     let actionText = '';
-    let location = null;
+    let location: Location | null = null;
     let product = null;
     let cases = 0;
 
@@ -256,7 +272,7 @@ export function Inventory() {
         }
         actionText = '入庫';
         product = products.find(p => p.code === selectedInbound);
-        location = {
+        location = {  // 修正後！
           column: selectedInboundColumn,
           position: selectedInboundPosition,
           level: selectedInboundLevel
@@ -275,7 +291,7 @@ export function Inventory() {
         }
         actionText = '出庫';
         product = products.find(p => p.code === selectedOutbound);
-        location = {
+        location = {  // 修正後！
           column: selectedOutboundColumn,
           position: selectedOutboundPosition,
           level: selectedOutboundLevel
@@ -317,12 +333,15 @@ export function Inventory() {
     const updatedProduct = { ...product };
     
     if (type === 'inbound') {
-      // 入庫処理
-      const existingLocation = updatedProduct.locations.find(
-        loc => loc.column === location.column && 
-              loc.position === location.position && 
-              loc.level === location.level
-      );
+// 入庫処理
+if (!location) return;  // ✅ location が null の場合は処理をスキップ
+const existingLocation = updatedProduct.locations.find(
+  loc => loc.column === location!.column &&
+         loc.position === location!.position &&
+         loc.level === location!.level
+);
+
+           
 
       if (existingLocation) {
         existingLocation.cases += cases;
@@ -340,12 +359,14 @@ export function Inventory() {
 
     } else if (type === 'outbound') {
       // 出庫処理
-      const locationIndex = updatedProduct.locations.findIndex(
-        loc => loc.column === location.column && 
-              loc.position === location.position && 
-              loc.level === location.level
-      );
+      if (!location) return;  // ✅ location が null の場合は処理をスキップ
 
+      const locationIndex = updatedProduct.locations.findIndex(
+        loc => loc.column === location!.column &&
+               loc.position === location!.position &&
+               loc.level === location!.level
+      );
+      
       if (locationIndex === -1) {
         toast({
           title: "エラー",
@@ -375,11 +396,14 @@ export function Inventory() {
 
     } else if (type === 'move') {
       // 移動処理
+      if (!location) return;  // ✅ location が null の場合は処理をスキップ
+
       const fromLocationIndex = updatedProduct.locations.findIndex(
-        loc => loc.column === location.column && 
-              loc.position === location.position && 
-              loc.level === location.level
+        loc => loc.column === location!.column &&
+               loc.position === location!.position &&
+               loc.level === location!.level
       );
+      
 
       if (fromLocationIndex === -1) {
         toast({
@@ -950,10 +974,17 @@ export function Inventory() {
               <div className="space-y-2">
                 <Label>移動先</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  <Select
-                    value={targetLocation?.column}
-                    onValueChange={(value) => setTargetLocation(prev => ({ ...prev || {}, column: value }))}
-                  >
+                <Select
+  value={targetLocation?.column}
+  onValueChange={(value) =>
+    setTargetLocation(prev => ({
+      column: value,
+      position: prev?.position ?? "",
+      level: prev?.level ?? ""
+    } as TargetLocation))  // ✅ 型を明示する
+  }
+>
+
                     <SelectTrigger>
                       <SelectValue placeholder="列" />
                     </SelectTrigger>
@@ -965,7 +996,14 @@ export function Inventory() {
                   </Select>
                   <Select
                     value={targetLocation?.position}
-                    onValueChange={(value) => setTargetLocation(prev => ({ ...prev || {}, position: value }))}
+                    onValueChange={(value) =>
+                      setTargetLocation(prev => ({
+                        column: value,
+                        position: prev?.position ?? "",
+                        level: prev?.level ?? ""
+                      } as TargetLocation))  // 型を TargetLocation に強制キャスト
+                    }
+                    
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="番目" />
@@ -978,7 +1016,14 @@ export function Inventory() {
                   </Select>
                   <Select
                     value={targetLocation?.level}
-                    onValueChange={(value) => setTargetLocation(prev => ({ ...prev || {}, level: value }))}
+                    onValueChange={(value) =>
+                      setTargetLocation(prev => ({
+                        level: value,
+                        column: prev?.column ?? "",
+                        position: prev?.position ?? ""
+                      } as TargetLocation))  // ✅ 型を明示
+                    }
+                    
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="レベル" />
